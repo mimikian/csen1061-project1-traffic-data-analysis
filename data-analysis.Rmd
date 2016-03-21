@@ -10,7 +10,7 @@ library(dplyr)
 
 #Data Reading
 ```{r}
-df <- read.csv(file="../traffic-data.csv", nrows=1000, head=TRUE, sep=",")
+df <- read.csv(file="../traffic-data.csv", nrows=10000, head=TRUE, sep=",")
 ```
 
 # Data Cleaning
@@ -23,5 +23,23 @@ nrow(df) - nrow(unique(df))
 Remove Columns which has one unique value  
 ```{r}
 df <- Filter(function(x)(length(unique(x))>2), df)
+ncol(df)
 ```
+
+Check mean of NA in each colmun
+```{r}
+p <- list()
+na_means = c()
+for (i in 1:ncol(df)) {
+     na_means  <- c(na_means,  mean(is.na(df[i])))
+}
+na_means
+```
+
+Last two columns have big NA mean. by looking in the dataset it appeas to be images which can be excluded from the anaylsis. So, remove these two columns
+```{r}
+df = subset(df, select = -c(ncol(df), ncol(df)-1) )
+ncol(df)
+```
+
 
