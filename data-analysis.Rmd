@@ -3,4 +3,25 @@ title: Traffic Data Analysis
 output: html_document
 ---
 
-this is where things start :)
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+#Data Reading
+```{r}
+df <- read.csv(file="../traffic-data.csv", nrows=1000, head=TRUE, sep=",")
+```
+
+# Data Cleaning
+
+Check for duplicate rows 
+```{r}
+nrow(df) - nrow(unique(df))
+```
+
+Remove Columns which has one unique value  
+```{r}
+df <- Filter(function(x)(length(unique(x))>2), df)
+```
+
