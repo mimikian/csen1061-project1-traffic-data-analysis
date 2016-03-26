@@ -10,7 +10,7 @@ library(dplyr)
 
 #Data Reading
 ```{r}
-df <- read.csv(file="../traffic-data.csv", nrows=10000, head=TRUE, sep=",")
+df <- read.csv(file="../traffic-data.csv", head=TRUE, sep=",")
 ```
 
 # Data Cleaning
@@ -28,7 +28,6 @@ ncol(df)
 
 Check mean of NA in each colmun
 ```{r}
-p <- list()
 na_means = c()
 for (i in 1:ncol(df)) {
      na_means  <- c(na_means,  mean(is.na(df[i])))
@@ -42,4 +41,18 @@ df = subset(df, select = -c(ncol(df), ncol(df)-1) )
 ncol(df)
 ```
 
-
+Check mean of unique values percentage in each colmun
+```{r}
+unique_values_percentage = c()
+for (i in 1:ncol(df)) {
+     val = length(unique(df[i])) / length(df[i])
+     unique_values_percentage  <- c(unique_values_percentage,  val)
+}
+#unique_values_percentage
+```
+After examining the meaning of data, we can get rid of the duplicate rows(have the same comment id)
+```{r}
+nrow(df)
+df <- subset(df, !duplicated(df[,13]))
+nrow(df)
+```
