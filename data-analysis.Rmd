@@ -56,3 +56,18 @@ nrow(df)
 df <- subset(df, !duplicated(df[,13]))
 nrow(df)
 ```
+
+Change crawl date column into R-data type date
+```{r}
+df$crawl_date <-  as.POSIXlt(df$crawl_date,format = "%a %b  %d %H:%M:%S UTC %Y", tz ="UTC")
+```
+
+Normalize the report and hour dates
+```{r}
+df$report_date <-  as.POSIXlt(df$crawl_date - (df$rd.rp.hr*60*60) - (df$rd.rp.mn*60))
+df$road_date <-  as.POSIXlt(df$crawl_date - (df$rd.hr*60*60) - (df$rd.mn*60))
+head(df)
+```
+
+
+
