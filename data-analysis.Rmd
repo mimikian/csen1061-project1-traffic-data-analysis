@@ -69,5 +69,10 @@ df$road_date <-  as.POSIXlt(df$crawl_date - (df$rd.hr*60*60) - (df$rd.mn*60))
 head(df)
 ```
 
+Add column area which repreents the main area of the road
+```{r}
+df$area <- strsplit(as.character(df$rd.nm),";")[[1]][1]
+head(df)
+```
 
 
