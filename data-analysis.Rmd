@@ -59,20 +59,55 @@ nrow(df)
 
 Change crawl date column into R-data type date
 ```{r}
-df$crawl_date <-  as.POSIXlt(df$crawl_date,format = "%a %b  %d %H:%M:%S UTC %Y", tz ="UTC")
+df$crawl_date <- as.POSIXct(df$crawl_date,format = "%a %b  %d %H:%M:%S UTC %Y", tz ="UTC")
 ```
 
 Normalize the report and hour dates
 ```{r}
-df$report_date <-  as.POSIXlt(df$crawl_date - (df$rd.rp.hr*60*60) - (df$rd.rp.mn*60))
-df$road_date <-  as.POSIXlt(df$crawl_date - (df$rd.hr*60*60) - (df$rd.mn*60))
+df$report_date <-  as.POSIXct(df$crawl_date - (df$rd.rp.hr*60*60) - (df$rd.rp.mn*60))
+df$road_date <-  as.POSIXct(df$crawl_date - (df$rd.hr*60*60) - (df$rd.mn*60))
 head(df)
 ```
 
 Add column area which repreents the main area of the road
 ```{r}
-df$area <- strsplit(as.character(df$rd.nm),";")[[1]][1]
-head(df)
+extract_area_and_direction <- function(road_name){
+  tokens <- road_name %>% as.character() %>% sapply(function(x){
+      a <- x%>% strsplit(split = ';') %>% unlist() %>% trimws()
+      b <- a[2] %>% strsplit(split = 'To') %>% unlist() %>% trimws()
+      c(a[1], b[1], b[2])
+  })
+   data.frame(
+    rd.area = tokens[1,],
+    rd.from = tokens[2,],
+    rd.to = tokens[3,]
+  )
+}
+
+extracted_values <-  extract_area_and_direction(df$rd.nm)
+df$rd.area <- extracted_values[,1]
+df$rd.from <- extracted_values[,2]
+df$rd.to <- extracted_values[,3]
 ```
 
+Lets define the crowdedness value for road or area as the mean of the comment values(7alawa,laziz,mashy,za7ma mafesh amal) multiplied by the number of reports for that road (To avoid the outliers)
 
+```{r}
+crowded_area <- df %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% group_by(rd.area) %>% summarise(crowded = mean(rd.rp.stid) * length(rd.area), length(rd.area))
+df2 <- df
+crowded_roads <- df %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% group_by(rd.nm) %>% summarise(crowded = mean(rd.rp.stid) * length(rd.nm), length(rd.nm))
+```
+
+The most crowded area are:
+```{r fig.width=15, fig.height=6, echo=FALSE}
+crowded_area <- crowded_area[order(crowded_area$crowded, decreasing = TRUE),]
+c <- ggplot(head(crowded_area), aes(x = rd.area, y = crowded))
+c + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Areas Names") + ylab("Crowdedness Value")
+```
+
+The most croweded roads are:
+```{r fig.width=15, fig.height=5, echo=FALSE}
+crowded_roads <- crowded_roads[order(crowded_roads$crowded, decreasing = TRUE),]
+cr <- ggplot(head(crowded_roads), aes(x = rd.nm, y = crowded))
+cr + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Roads Names") + ylab("Crowdedness Value")
+```
