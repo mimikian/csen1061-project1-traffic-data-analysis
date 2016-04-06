@@ -1,11 +1,12 @@
 ---
-title: Traffic Data Analysis
+title: "Traffic Data Analysis"
 output: html_document
 ---
 
 ```{r}
 library(ggplot2)
 library(dplyr)
+library(lubridate)
 ```
 
 #Data Reading
@@ -59,14 +60,15 @@ nrow(df)
 
 Change crawl date column into R-data type date
 ```{r}
-df$crawl_date <- as.POSIXct(df$crawl_date,format = "%a %b  %d %H:%M:%S UTC %Y", tz ="UTC")
+df$crawl_date <- as.POSIXct(df$crawl_date,format = "%a %b  %e %H:%M:%S UTC %Y", tz ="UTC")
 ```
 
 Normalize the report and hour dates
 ```{r}
 df$report_date <-  as.POSIXct(df$crawl_date - (df$rd.rp.hr*60*60) - (df$rd.rp.mn*60))
 df$road_date <-  as.POSIXct(df$crawl_date - (df$rd.hr*60*60) - (df$rd.mn*60))
-head(df)
+df$rd.rp.hr <-  df$report_date %>% hour() 
+df$rd.rp.mn <-  df$report_date %>% minute() 
 ```
 
 Add column area which repreents the main area of the road
@@ -110,4 +112,13 @@ The most croweded roads are:
 crowded_roads <- crowded_roads[order(crowded_roads$crowded, decreasing = TRUE),]
 cr <- ggplot(head(crowded_roads), aes(x = rd.nm, y = crowded))
 cr + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Roads Names") + ylab("Crowdedness Value")
+```
+
+
+The rush hour is:
+```{r fig.width=15, fig.height=5, echo=FALSE}
+rush_hours <- df %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% group_by(rd.rp.hr) %>% summarise(crowded = mean(rd.rp.stid) * length(rd.rp.hr))
+#crowded_roads <- crowded_roads[order(crowded_roads$crowded, decreasing = TRUE),]
+cr <- ggplot(rush_hours, aes(x = rd.rp.hr, y = crowded))
+cr + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Hours") + ylab("Value")
 ```
