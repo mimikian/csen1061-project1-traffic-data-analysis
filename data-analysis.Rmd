@@ -7,14 +7,17 @@ output: html_document
 library(ggplot2)
 library(dplyr)
 library(lubridate)
+library(gridExtra)
+library(tidyr)
 ```
 
-#Data Reading
+#1. Data Reading
+
 ```{r}
 df <- read.csv(file="../traffic-data.csv", head=TRUE, sep=",")
 ```
 
-# Data Preparation
+#2. Data Preparation
 
 Check for duplicate rows 
 ```{r}
@@ -73,25 +76,13 @@ df$rd.rp.mn <-  df$report_date %>% minute()
 
 Add columns area, from, to  which repreents the main area of the road and the directions
 ```{r}
-extract_area_and_direction <- function(road_name){
-  tokens <- road_name %>% as.character() %>% sapply(function(x){
-      a <- x%>% strsplit(split = ';') %>% unlist() %>% trimws()
-      b <- a[2] %>% strsplit(split = 'To') %>% unlist() %>% trimws()
-      c(a[1], b[1], b[2])
-  })
-   data.frame(
-    rd.area = tokens[1,],
-    rd.from = tokens[2,],
-    rd.to = tokens[3,]
-  )
-}
-
-extracted_values <-  extract_area_and_direction(df$rd.nm)
-df$rd.area <- extracted_values[,1]
-df$rd.from <- extracted_values[,2]
-df$rd.to <- extracted_values[,3]
+df <- df %>% mutate(rd.nm.tmp = rd.nm)
+df <- df %>% separate(col = rd.nm.tmp, into = c('rd.area', 'rd.from.tmp'), sep=';')
+df <- df %>% separate(col = rd.from.tmp, into = c('rd.from', 'rd.to'), sep='To')
 ```
 
+#3 Congestion 
+## 3.1 Congestion Overview
 The proposed metric to check the congestion of a road is to take the average of the status road(7alawa,laziz, mashy,za7ma,mafesh 2amal) in all the reports concerning that road. But to avoid the outliers to affect the results, the congestion value multipled by the weight of that road.
 
 Here are the first 6 area with highst congestion:
@@ -111,21 +102,76 @@ crowded_roads <- crowded_roads[order(crowded_roads$crowded, decreasing = TRUE),]
 The most crowded areas are:
 ```{r fig.width=15, fig.height=6, echo=FALSE}
 c <- ggplot(head(crowded_area), aes(x = rd.area, y = crowded))
-c + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Areas Names") + ylab("Congestion Value")
+c + geom_bar(stat = "identity", width= 0.5, fill = "#F57670") + xlab("Areas Names") + ylab("Congestion Value")
 ```
 
 The most croweded roads are:
 ```{r fig.width=15, fig.height=5, echo=FALSE}
 cr <- ggplot(head(crowded_roads), aes(x = rd.nm, y = crowded))
-cr + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Roads Names") + ylab("Congestion Value")
+cr + geom_bar(stat = "identity", width= 0.5, fill = "#F57670") + xlab("Roads Names") + ylab("Congestion Value")
 ```
 
-It is clear that the reports are more distributed in some main areas that should be investigated:
+## 3.2 Main areas congestion investigation 
+It is clear that the reports are more distributed in some main areas that should be investigated. Those main areas are "Da2ry, Me7war, Kobry 6 October".
+
 ```{r fig.width=15, fig.height=5, echo=FALSE}
 reports_denisty <- df %>% group_by(rd.area) %>% summarise(count = length(rd.area))
 reports_denisty <- reports_denisty[order(crowded_roads$count, decreasing = TRUE),]
 g <- ggplot(head(reports_denisty), aes(x = rd.area, y = count))
-g + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Roads Names") + ylab("# of reports")
+g + geom_bar(stat = "identity", width= 0.5, fill = "#F57670") + xlab("Roads Names") + ylab("# of reports")
+```
+
+The most croweded segment of the mentioned areas.
+```{r fig.width=15, fig.height=5, echo=FALSE}
+#da2ery
+da2ery <- df %>% subset(rd.area =="Da2ery") 
+da2ry_roads <- da2ery %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5) %>% group_by(rd.nm) %>% summarise(congestion_value = mean(rd.rp.stid), count=length(rd.nm))
+length <- da2ery %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% nrow()
+da2ry_roads$congestion_value = da2ry_roads$congestion_value * (da2ry_roads$count/length)
+da2ry_roads <- da2ry_roads[order(da2ry_roads$congestion_value, decreasing = TRUE),]
+
+#Me7war
+me7war <- df %>% subset(rd.area =="Me7war") 
+me7war_roads <- me7war %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5) %>% group_by(rd.nm) %>% summarise(congestion_value = mean(rd.rp.stid), count=length(rd.nm))
+length <- me7war %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% nrow()
+me7war_roads$congestion_value = me7war_roads$congestion_value * (me7war_roads$count/length)
+me7war_roads <- me7war_roads[order(me7war_roads$congestion_value, decreasing = TRUE),]
+
+#October
+october <- df %>% subset(rd.area =="Me7war") 
+october_roads <- october %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5) %>% group_by(rd.nm) %>% summarise(congestion_value = mean(rd.rp.stid), count=length(rd.nm))
+length <- october %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% nrow()
+october_roads$congestion_value = october_roads$congestion_value * (october_roads$count/length)
+october_roads <- october_roads[order(october_roads$congestion_value, decreasing = TRUE),]
+#Plotting
+g1 <- ggplot(head(da2ry_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#C680FC") + xlab("Da2ery::Segment name") + ylab("Congestion Value")
+
+g2 <- ggplot(head(me7war_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#7EAC1F") + xlab("Me7war::Segment name") + ylab("Congestion Value")
+
+g3 <- ggplot(head(october_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#1FBEC3") + xlab("October::Segment name") + ylab("Congestion Value")
+
+grid.arrange(g1, g2, g3, ncol=3)
+
+```
+
+The rush hour of the mentioned areas.
+
+```{r fig.width=15, fig.height=5, echo=FALSE}
+da2ry_rush_hours <- da2ery %>% group_by(rd.rp.hr) %>% summarise(reports_number =  length(rd.rp.hr))
+da2ry_rush_hours <- da2ry_rush_hours[order(da2ry_rush_hours$reports_number, decreasing = TRUE),]
+me7war_rush_hours <- me7war %>% group_by(rd.rp.hr) %>% summarise(reports_number =  length(rd.rp.hr))
+me7war_rush_hours <- me7war_rush_hours[order(me7war_rush_hours$reports_number, decreasing = TRUE),]
+october_rush_hours <- october %>% group_by(rd.rp.hr) %>% summarise(reports_number =  length(rd.rp.hr))
+october_rush_hours <- october_rush_hours[order(october_rush_hours$reports_number, decreasing = TRUE),]
+
+g1 <- ggplot(head(da2ry_rush_hours,4), aes(x = rd.rp.hr, y = reports_number)) + geom_bar(stat = "identity", width= 0.5, fill = "#C680FC") + xlab("Hour") + ylab("# of reports")
+
+g2 <- ggplot(head(me7war_rush_hours,4), aes(x = rd.rp.hr, y = reports_number)) + geom_bar(stat = "identity", width= 0.5, fill = "#7EAC1F") + xlab("Hour") + ylab("# of reports")
+
+g3 <- ggplot(head(october_rush_hours,4), aes(x = rd.rp.hr, y = reports_number)) + geom_bar(stat = "identity", width= 0.5, fill = "#1FBEC3") + xlab("Hour") + ylab("# of reports")
+
+grid.arrange(g1, g2, g3, ncol=3)
+
 ```
 
 
@@ -134,5 +180,6 @@ It is resnoable that the rush hour is when the users tend to report more about t
 ```{r fig.width=15, fig.height=5, echo=FALSE}
 rush_hours <- df %>% group_by(rd.rp.hr) %>% summarise(crowded =  length(rd.rp.hr))
 cr <- ggplot(rush_hours, aes(x = rd.rp.hr, y = crowded))
-cr + geom_bar(stat = "identity", width= 0.5, fill = "red") + xlab("Hour") + ylab("# of reports")
+cr + geom_bar(stat = "identity", width= 0.5, fill = "#F57670") + xlab("Hour") + ylab("# of reports")
 ```
+
