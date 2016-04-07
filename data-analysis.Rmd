@@ -52,7 +52,7 @@ for (i in 1:ncol(df)) {
      val = length(unique(df[i])) / length(df[i])
      unique_values_percentage  <- c(unique_values_percentage,  val)
 }
-#unique_values_percentage
+unique_values_percentage
 ```
 After examining the meaning of data, we can get rid of the duplicate rows(have the same comment id)
 ```{r}
@@ -68,7 +68,7 @@ df$crawl_date <- as.POSIXct(df$crawl_date,format = "%a %b  %e %H:%M:%S UTC %Y", 
 
 Normalize the report and road dates
 ```{r}
-#df$crawl_date <- df$crawl_date + hours(2) 
+df$crawl_date <- df$crawl_date + hours(2) 
 df$report_date <-  as.POSIXct(df$crawl_date - (df$rd.rp.hr*60*60) - (df$rd.rp.mn*60))
 df$road_date <-  as.POSIXct(df$crawl_date - (df$rd.hr*60*60) - (df$rd.mn*60))
 df$rd.rp.hr <-  df$report_date %>% hour() 
@@ -81,6 +81,15 @@ Add columns area, from, to  which repreents the main area of the road and the di
 df <- df %>% mutate(rd.nm.tmp = rd.nm)
 df <- df %>% separate(col = rd.nm.tmp, into = c('rd.area', 'rd.from.tmp'), sep=';')
 df <- df %>% separate(col = rd.from.tmp, into = c('rd.from', 'rd.to'), sep='To')
+```
+
+As the web app providing each road's city, so there is the ability to add the city column to our data. If rd.city = true then it is in cairo.
+
+```{r}
+cairo.roads <- c("Line 1","Line 2","Line 3","Autostrad","Ba7r A3zam","Da2ery","El Wasla","Mansoureya","Faissal St.","Gesr ElSuez","Haram St.","Ismailia Rd.","Ismailia Road","Me7war Sa3d ElShazly","Kobry 15 Mayo","Kobry 3abbas","Kobry 6 October","Ta7t K.October(Lotfy ElSayed)","Ta7t K.October(Mahmasha)","Waslet Kobry 6 October To 15 Mayo","Kobry Kasr ElNile","Kobry ElGam3a","Kornich ElNile","AlKasr Al3eny St.","Kornich Agouza","Nasr st","Zahraa st","Ma3ady","Mostafa ElNa7as","Zaker 7esein","3abbas El3akkad","Makram 3ebeid","Tayaran St.","Madinet Nasr","Khalifa ElMa2moun St.","Marghani St.","Nozha St.","Thawra St.","Masr ElGedeeda","Me7war","Me7war Ahmed 3orabi","Me7war Saft ElLaban","Me7war ElKhalafawy","Me7war ElShaheed","Batal Ahmed St.","Gam3et ElDewal St","Mohandesin","Sudan St.","Tahrir St.","Morad St.","Nafa2 ElAzhar","NA Road","90 St.","Emtedad Ramses","Lotfy ElSayed","Ramses St.","ElGala2","Waslet Pyramids Heights","Sa7rawy","Sala7 Salem","Suez Rd.","Fayoum Rd.","Wahat Road","West ElBalad","Midan ElTa7rir","Zamalek","Zera3y Road","Other Roads","Wadi ElNatron","Sharm Rd")
+
+df$rd.city <- FALSE
+df <- df %>% mutate(rd.city = rd.area %in% cairo.roads) 
 ```
 
 #3 Congestion 
@@ -162,11 +171,11 @@ length <- october %>% subset(rd.rp.stid >= 1 & rd.rp.stid <=5 ) %>% nrow()
 october_roads$congestion_value = october_roads$congestion_value * (october_roads$count/length)
 october_roads <- october_roads[order(october_roads$congestion_value, decreasing = TRUE),]
 #Plotting
-g1 <- ggplot(head(da2ry_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#C680FC") + xlab("Da2ery::Segment name") + ylab("Congestion Value")
+g1 <- ggplot(head(da2ry_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#C680FC") + xlab("Da2ery") + ylab("Congestion Value")
 
-g2 <- ggplot(head(me7war_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#7EAC1F") + xlab("Me7war::Segment name") + ylab("Congestion Value")
+g2 <- ggplot(head(me7war_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#7EAC1F") + xlab("Me7war") + ylab("Congestion Value")
 
-g3 <- ggplot(head(october_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#1FBEC3") + xlab("October::Segment name") + ylab("Congestion Value")
+g3 <- ggplot(head(october_roads,2), aes(x = rd.nm, y = congestion_value)) + geom_bar(stat = "identity", width= 0.5, fill = "#1FBEC3") + xlab("October") + ylab("Congestion Value")
 
 grid.arrange(g1, g2, g3, ncol=3)
 
@@ -213,5 +222,30 @@ g2 <- ggplot(head(me7war_rush_days,3), aes(x = rd.rp.day, y = reports_number)) +
 g3 <- ggplot(head(october_rush_days,3), aes(x = rd.rp.day, y = reports_number)) + geom_bar(stat = "identity", width= 0.5, fill = "#1FBEC3") + xlab("Week Days") + ylab("# of reports")
 
 grid.arrange(g1, g2, g3, ncol=3)
+
+```
+
+As long we have the the city name for each road. So, we can check which users tend to report about the roads in Cairo and Alex.
+```{r fig.width=15, fig.height=5, echo=FALSE}
+cities_reports <- df %>% group_by(rd.city) %>% summarise(count = length(rd.city))
+cities_reports
+```
+
+```{r fig.width=15, fig.height=5, echo=FALSE}
+crowded_area_alex <- df %>% filter(rd.city== FALSE & rd.rp.stid >= 1 & rd.rp.stid <= 5) %>% group_by(rd.area) %>% summarise(crowded = mean(rd.rp.stid), count = length(rd.area))
+length <- df %>% filter(rd.city== FALSE & rd.rp.stid >= 1 & rd.rp.stid <= 5) %>% nrow()
+crowded_area_alex$crowded = crowded_area_alex$crowded * (crowded_area_alex$count/length)
+crowded_area_alex <- crowded_area_alex[order(crowded_area_alex$crowded, decreasing = TRUE),]
+
+crowded_area_cairo <- df %>% filter(rd.city== TRUE & rd.rp.stid >= 1 & rd.rp.stid <= 5) %>% group_by(rd.area) %>% summarise(crowded = mean(rd.rp.stid), count = length(rd.area))
+length <- df %>% filter(rd.city== FALSE & rd.rp.stid >= 1 & rd.rp.stid <= 5) %>% nrow()
+crowded_area_cairo$crowded = crowded_area_cairo$crowded * (crowded_area_cairo$count/length)
+crowded_area_cairo <- crowded_area_cairo[order(crowded_area_cairo$crowded, decreasing = TRUE),]
+
+g1 <- ggplot(head(crowded_area_cairo,3), aes(x = rd.area, y = crowded)) + geom_bar(stat = "identity", width= 0.5, fill = "#C680FC") + xlab("Road Name") + ylab("Congestion Value")
+
+g2 <- ggplot(head(crowded_area_alex,3), aes(x = rd.area, y = crowded)) + geom_bar(stat = "identity", width= 0.5, fill = "#7EAC1F") + xlab("Road Name") + ylab("Congestion Value")
+
+grid.arrange(g1, g2,ncol=2)
 
 ```
